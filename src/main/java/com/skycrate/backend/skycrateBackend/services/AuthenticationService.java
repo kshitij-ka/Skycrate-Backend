@@ -9,6 +9,8 @@ import com.skycrate.backend.skycrateBackend.utils.EncryptionUtil;
 import com.skycrate.backend.skycrateBackend.utils.RSAKeyUtil;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -17,6 +19,8 @@ import org.springframework.stereotype.Service;
 import javax.crypto.SecretKey;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class AuthenticationService {
@@ -24,13 +28,18 @@ public class AuthenticationService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
+    private final KeyCacheService keyCacheService;
+
+    private static final Logger log = LoggerFactory.getLogger(AuthenticationService.class);
 
     public AuthenticationService(UserRepository userRepository,
                                  AuthenticationManager authenticationManager,
-                                 PasswordEncoder passwordEncoder) {
+                                 PasswordEncoder passwordEncoder,
+                                 KeyCacheService keyCacheService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
+        this.keyCacheService = keyCacheService;
     }
 
     public User signUp(RegisterUserDto inputUser) {
@@ -89,5 +98,24 @@ public class AuthenticationService {
 
         return userRepository.findByEmail(inputUser.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    @Cacheable(value = "decryptedPrivateKeys", key = "#userId")
+    public byte[] getDecryptedPrivateKey(String userId, String password) throws Exception {
+        User user = userRepository.findById(Integer.valueOf(userId))
+                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+
+        log.info("Caching decrypted private key for userId: {}", userId);
+
+        SecretKey derivedKey = EncryptionUtil.deriveKey(password.toCharArray(), user.getPrivateKeySalt());
+        byte[] decryptedPrivateKeyBytes = EncryptionUtil.decrypt(user.getPrivateKey(), derivedKey, user.getPrivateKeyIv());
+        return decryptedPrivateKeyBytes;
+    }
+
+    @CacheEvict(value = "decryptedPrivateKeys", key = "#userId")
+    public void clearDecryptedPrivateKeyCache(String userId) {
+        // This method will clear the cached decrypted private key for the given userId
+        log.info("Clearing Caching decrypted private key for userId: {}", userId);
+        keyCacheService.clearKey(Long.valueOf(userId));
     }
 }

@@ -13,7 +13,9 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.crypto.SecretKey;
 import java.io.ByteArrayInputStream;
@@ -24,15 +26,23 @@ import java.security.PublicKey;
 public class FileService {
 
     private static final Logger log = LoggerFactory.getLogger(FileService.class);
-
+    private final AuthenticationService authenticationService;
     private final FileMetadataRepository fileMetadataRepository;
     private final UserRepository userRepository;
 
-    public FileService(FileMetadataRepository fileMetadataRepository, UserRepository userRepository) {
+//    public FileService(FileMetadataRepository fileMetadataRepository, UserRepository userRepository) {
+//        this.fileMetadataRepository = fileMetadataRepository;
+//        this.userRepository = userRepository;
+//    }
+
+    @Autowired
+    public FileService(FileMetadataRepository fileMetadataRepository, UserRepository userRepository, AuthenticationService authenticationService) {
         this.fileMetadataRepository = fileMetadataRepository;
         this.userRepository = userRepository;
+        this.authenticationService = authenticationService;
     }
 
+    @Transactional
     public void uploadEncryptedFile(String username, byte[] fileContent, String filename) throws Exception {
         log.info("Starting upload for user={}, file={}", username, filename);
         try {
@@ -81,6 +91,37 @@ public class FileService {
         }
     }
 
+//    public byte[] downloadDecryptedFile(String username, String password, String filename) throws Exception {
+//        log.info("Download request: user={}, file={}", username, filename);
+//        try {
+//            User user = userRepository.findByUsername(username)
+//                    .orElseThrow(() -> new RuntimeException("User not found: " + username));
+//
+//            Path filePath = new Path("/" + username + "/" + filename);
+//            FileMetadata metadata = fileMetadataRepository.findByUsernameAndFilePath(username, filePath.toString())
+//                    .orElseThrow(() -> new RuntimeException("File metadata not found for: " + filePath));
+//
+//            SecretKey derivedKey = EncryptionUtil.deriveKey(password.toCharArray(), user.getPrivateKeySalt());
+//            byte[] decryptedPrivateKeyBytes = EncryptionUtil.decrypt(user.getPrivateKey(), derivedKey, user.getPrivateKeyIv());
+//            PrivateKey privateKey = RSAKeyUtil.decodePrivateKey(decryptedPrivateKeyBytes);
+//
+//            byte[] aesKeyBytes = EncryptionUtil.decryptRSA(metadata.getEncryptedKey(), privateKey);
+//            SecretKey aesKey = EncryptionUtil.rebuildAESKey(aesKeyBytes);
+//
+//            FileSystem fs = HDFSConfig.getHDFS();
+//            byte[] encryptedData;
+//            try (FSDataInputStream in = fs.open(filePath)) {
+//                encryptedData = in.readAllBytes();
+//            }
+//
+//            return EncryptionUtil.decrypt(encryptedData, aesKey, metadata.getIv());
+//
+//        } catch (Exception e) {
+//            log.error("Download failed for user={}, file={}: {}", username, filename, e.getMessage(), e);
+//            throw e;
+//        }
+//    }
+
     public byte[] downloadDecryptedFile(String username, String password, String filename) throws Exception {
         log.info("Download request: user={}, file={}", username, filename);
         try {
@@ -91,8 +132,8 @@ public class FileService {
             FileMetadata metadata = fileMetadataRepository.findByUsernameAndFilePath(username, filePath.toString())
                     .orElseThrow(() -> new RuntimeException("File metadata not found for: " + filePath));
 
-            SecretKey derivedKey = EncryptionUtil.deriveKey(password.toCharArray(), user.getPrivateKeySalt());
-            byte[] decryptedPrivateKeyBytes = EncryptionUtil.decrypt(user.getPrivateKey(), derivedKey, user.getPrivateKeyIv());
+            // Use the cached decrypted private key
+            byte[] decryptedPrivateKeyBytes = authenticationService.getDecryptedPrivateKey(String.valueOf(user.getId()), password);
             PrivateKey privateKey = RSAKeyUtil.decodePrivateKey(decryptedPrivateKeyBytes);
 
             byte[] aesKeyBytes = EncryptionUtil.decryptRSA(metadata.getEncryptedKey(), privateKey);

@@ -14,6 +14,8 @@ import com.skycrate.backend.skycrateBackend.services.JwtService;
 import com.skycrate.backend.skycrateBackend.services.RateLimiterService;
 import com.skycrate.backend.skycrateBackend.services.RefreshTokenService;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -84,6 +86,23 @@ public class AuthController {
         return ResponseEntity.ok(new LoginResponse(accessToken, refreshToken.getToken()));
     }
 
+//    @PostMapping("/logout")
+//    public ResponseEntity<?> logout(HttpServletRequest request) {
+//        String authHeader = request.getHeader("Authorization");
+//        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+//            return ResponseEntity.badRequest().body("Missing or invalid Authorization header");
+//        }
+//
+//        String token = authHeader.substring(7);
+//
+//        tokenBlacklistService.blacklistToken(token);
+//
+//        String email = jwtService.extractUsername(token);
+//        userRepository.findByEmail(email).ifPresent(refreshTokenService::deleteByUser);
+//
+//        return ResponseEntity.ok("Logged out successfully");
+//    }
+
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
@@ -92,14 +111,37 @@ public class AuthController {
         }
 
         String token = authHeader.substring(7);
+        String username = jwtService.extractUsername(token);
+
+        userRepository.findByUsername(username).ifPresent(user -> {
+            // Clear the cached decrypted private key for the user
+            authenticationService.clearDecryptedPrivateKeyCache(user.getId().toString());
+
+            // Delete the refresh token associated with the user
+            refreshTokenService.logout(user); // This should delete the token
+        });
 
         tokenBlacklistService.blacklistToken(token);
 
-        String email = jwtService.extractUsername(token);
-        userRepository.findByEmail(email).ifPresent(refreshTokenService::deleteByUser);
-
         return ResponseEntity.ok("Logged out successfully");
     }
+
+//    @PostMapping("/refresh")
+//    public ResponseEntity<?> refresh(@RequestBody TokenRefreshRequest request) {
+//        String requestToken = request.getRefreshToken();
+//
+//        return refreshTokenService.findByToken(requestToken)
+//                .map(token -> {
+//                    if (refreshTokenService.isExpired(token)) {
+//                        return ResponseEntity.status(403).body("Refresh token expired");
+//                    }
+//
+//                    User user = token.getUser();
+//                    String newAccessToken = jwtService.generateToken(user);
+//                    return ResponseEntity.ok(new TokenRefreshResponse(newAccessToken, requestToken));
+//                })
+//                .orElseGet(() -> ResponseEntity.status(403).body("Invalid refresh token"));
+//    }
 
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(@RequestBody TokenRefreshRequest request) {
@@ -108,6 +150,8 @@ public class AuthController {
         return refreshTokenService.findByToken(requestToken)
                 .map(token -> {
                     if (refreshTokenService.isExpired(token)) {
+                        // Clear the cached key on token expiry
+                        authenticationService.clearDecryptedPrivateKeyCache(token.getUser().getId().toString());
                         return ResponseEntity.status(403).body("Refresh token expired");
                     }
 
