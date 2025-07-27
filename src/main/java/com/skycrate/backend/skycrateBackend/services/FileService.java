@@ -30,11 +30,6 @@ public class FileService {
     private final FileMetadataRepository fileMetadataRepository;
     private final UserRepository userRepository;
 
-//    public FileService(FileMetadataRepository fileMetadataRepository, UserRepository userRepository) {
-//        this.fileMetadataRepository = fileMetadataRepository;
-//        this.userRepository = userRepository;
-//    }
-
     @Autowired
     public FileService(FileMetadataRepository fileMetadataRepository, UserRepository userRepository, AuthenticationService authenticationService) {
         this.fileMetadataRepository = fileMetadataRepository;
@@ -90,37 +85,6 @@ public class FileService {
             throw e;
         }
     }
-
-//    public byte[] downloadDecryptedFile(String username, String password, String filename) throws Exception {
-//        log.info("Download request: user={}, file={}", username, filename);
-//        try {
-//            User user = userRepository.findByUsername(username)
-//                    .orElseThrow(() -> new RuntimeException("User not found: " + username));
-//
-//            Path filePath = new Path("/" + username + "/" + filename);
-//            FileMetadata metadata = fileMetadataRepository.findByUsernameAndFilePath(username, filePath.toString())
-//                    .orElseThrow(() -> new RuntimeException("File metadata not found for: " + filePath));
-//
-//            SecretKey derivedKey = EncryptionUtil.deriveKey(password.toCharArray(), user.getPrivateKeySalt());
-//            byte[] decryptedPrivateKeyBytes = EncryptionUtil.decrypt(user.getPrivateKey(), derivedKey, user.getPrivateKeyIv());
-//            PrivateKey privateKey = RSAKeyUtil.decodePrivateKey(decryptedPrivateKeyBytes);
-//
-//            byte[] aesKeyBytes = EncryptionUtil.decryptRSA(metadata.getEncryptedKey(), privateKey);
-//            SecretKey aesKey = EncryptionUtil.rebuildAESKey(aesKeyBytes);
-//
-//            FileSystem fs = HDFSConfig.getHDFS();
-//            byte[] encryptedData;
-//            try (FSDataInputStream in = fs.open(filePath)) {
-//                encryptedData = in.readAllBytes();
-//            }
-//
-//            return EncryptionUtil.decrypt(encryptedData, aesKey, metadata.getIv());
-//
-//        } catch (Exception e) {
-//            log.error("Download failed for user={}, file={}: {}", username, filename, e.getMessage(), e);
-//            throw e;
-//        }
-//    }
 
     public byte[] downloadDecryptedFile(String username, String password, String filename) throws Exception {
         log.info("Download request: user={}, file={}", username, filename);

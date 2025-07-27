@@ -1,5 +1,6 @@
 package com.skycrate.backend.skycrateBackend.controller;
 
+import com.skycrate.backend.skycrateBackend.dto.FileDownloadRequest;
 import com.skycrate.backend.skycrateBackend.services.FileService;
 import com.skycrate.backend.skycrateBackend.services.JwtService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -39,20 +40,20 @@ public class FileController {
         }
     }
 
-    @GetMapping("/download/{filename}")
+    @GetMapping("/download")
     public ResponseEntity<?> downloadFile(
-            @PathVariable String filename,
-            @RequestParam("password") String password,
+            @RequestBody FileDownloadRequest fileDownloadRequest,
             HttpServletRequest request
     ) {
         try {
             String token = extractToken(request);
             String username = jwtService.extractUsername(token);
 
-            byte[] decryptedData = fileService.downloadDecryptedFile(username, password, filename);
+            // Use the password and filename from the FileDownloadRequest DTO
+            byte[] decryptedData = fileService.downloadDecryptedFile(username, fileDownloadRequest.getPassword(), fileDownloadRequest.getFilename());
 
             return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileDownloadRequest.getFilename() + "\"")
                     .contentLength(decryptedData.length)
                     .contentType(MediaType.APPLICATION_OCTET_STREAM)
                     .body(decryptedData);

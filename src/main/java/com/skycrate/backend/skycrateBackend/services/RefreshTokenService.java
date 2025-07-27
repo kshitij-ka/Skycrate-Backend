@@ -23,18 +23,6 @@ public class RefreshTokenService {
         this.refreshTokenRepo = refreshTokenRepo;
     }
 
-//    @Transactional
-//    public RefreshToken createRefreshToken(User user) {
-//        refreshTokenRepo.deleteByUser(user);
-//        refreshTokenRepo.flush();
-//
-//        RefreshToken token = new RefreshToken();
-//        token.setUser(user);
-//        token.setExpiryDate(Instant.now().plusMillis(refreshTokenDurationMs));
-//        token.setToken(UUID.randomUUID().toString());
-//        return refreshTokenRepo.save(token);
-//    }
-
     @Transactional
     public RefreshToken createRefreshToken(User user) {
         refreshTokenRepo.deleteByUser(user);
@@ -55,11 +43,6 @@ public class RefreshTokenService {
     public boolean isExpired(RefreshToken token) {
         return token.getExpiryDate().isBefore(Instant.now());
     }
-//
-//    @Transactional
-//    public void deleteByUser(User user) {
-//        refreshTokenRepo.deleteByUser(user);
-//    }
 
     @Transactional
     public void deleteByUser(User user) {

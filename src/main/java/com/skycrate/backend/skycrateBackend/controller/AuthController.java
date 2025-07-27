@@ -9,10 +9,7 @@ import com.skycrate.backend.skycrateBackend.entity.RefreshToken;
 import com.skycrate.backend.skycrateBackend.entity.User;
 import com.skycrate.backend.skycrateBackend.repository.UserRepository;
 import com.skycrate.backend.skycrateBackend.security.TokenBlacklistService;
-import com.skycrate.backend.skycrateBackend.services.AuthenticationService;
-import com.skycrate.backend.skycrateBackend.services.JwtService;
-import com.skycrate.backend.skycrateBackend.services.RateLimiterService;
-import com.skycrate.backend.skycrateBackend.services.RefreshTokenService;
+import com.skycrate.backend.skycrateBackend.services.*;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/auth")
 public class AuthController {
 
+    private static final Logger log = LoggerFactory.getLogger(FileService.class);
     private final AuthenticationManager authManager;
     private final JwtService jwtService;
     private final UserRepository userRepository;
@@ -86,23 +84,6 @@ public class AuthController {
         return ResponseEntity.ok(new LoginResponse(accessToken, refreshToken.getToken()));
     }
 
-//    @PostMapping("/logout")
-//    public ResponseEntity<?> logout(HttpServletRequest request) {
-//        String authHeader = request.getHeader("Authorization");
-//        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-//            return ResponseEntity.badRequest().body("Missing or invalid Authorization header");
-//        }
-//
-//        String token = authHeader.substring(7);
-//
-//        tokenBlacklistService.blacklistToken(token);
-//
-//        String email = jwtService.extractUsername(token);
-//        userRepository.findByEmail(email).ifPresent(refreshTokenService::deleteByUser);
-//
-//        return ResponseEntity.ok("Logged out successfully");
-//    }
-
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
@@ -126,30 +107,15 @@ public class AuthController {
         return ResponseEntity.ok("Logged out successfully");
     }
 
-//    @PostMapping("/refresh")
-//    public ResponseEntity<?> refresh(@RequestBody TokenRefreshRequest request) {
-//        String requestToken = request.getRefreshToken();
-//
-//        return refreshTokenService.findByToken(requestToken)
-//                .map(token -> {
-//                    if (refreshTokenService.isExpired(token)) {
-//                        return ResponseEntity.status(403).body("Refresh token expired");
-//                    }
-//
-//                    User user = token.getUser();
-//                    String newAccessToken = jwtService.generateToken(user);
-//                    return ResponseEntity.ok(new TokenRefreshResponse(newAccessToken, requestToken));
-//                })
-//                .orElseGet(() -> ResponseEntity.status(403).body("Invalid refresh token"));
-//    }
-
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(@RequestBody TokenRefreshRequest request) {
         String requestToken = request.getRefreshToken();
+        log.error("Received refresh token: " + requestToken);
 
         return refreshTokenService.findByToken(requestToken)
                 .map(token -> {
                     if (refreshTokenService.isExpired(token)) {
+                        log.error("Refresh token expired for user: " + token.getUser().getUsername());
                         // Clear the cached key on token expiry
                         authenticationService.clearDecryptedPrivateKeyCache(token.getUser().getId().toString());
                         return ResponseEntity.status(403).body("Refresh token expired");
@@ -157,8 +123,12 @@ public class AuthController {
 
                     User user = token.getUser();
                     String newAccessToken = jwtService.generateToken(user);
+                    log.info("Generated new access token for user: " + user.getUsername());
                     return ResponseEntity.ok(new TokenRefreshResponse(newAccessToken, requestToken));
                 })
-                .orElseGet(() -> ResponseEntity.status(403).body("Invalid refresh token"));
+                .orElseGet(() -> {
+                    log.error("Invalid refresh token: " + requestToken);
+                    return ResponseEntity.status(403).body("Invalid refresh token");
+                });
     }
 }
