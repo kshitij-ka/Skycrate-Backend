@@ -5,7 +5,7 @@ FROM debian:12-slim
 
 # Metadata
 LABEL maintainer="kshitijka"
-LABEL version=1.0
+LABEL version=1.5
 LABEL description="Skycrate is a web based file management system that uses Hadoop as filesystem."
 
 # Update & upgrade & install & rm
@@ -19,16 +19,13 @@ RUN useradd -s /bin/bash skycrateBack
 # Create work dir
 RUN mkdir /app
 RUN chown -R skycrateBack:skycrateBack /app
-COPY ./target/ /app
+COPY ./target/skycrateBackend-1.5.jar /app
 WORKDIR /app
-
-# Create temp download directory
-RUN mkdir -p /Skycrate/downloaded/
-RUN chown -R skycrateBack:skycrateBack /Skycrate /Skycrate/downloaded/
 
 # Switch user
 USER skycrateBack
 
-EXPOSE 8081
+# Expose port for backend
+EXPOSE 8080
 
-CMD ["java", "-jar", "/app/skycrateBackend-0.0.1-SNAPSHOT.jar"]
+CMD ["java", "-jar", "skycrateBackend-1.5.jar"]
