@@ -19,7 +19,7 @@ RUN useradd -s /bin/bash skycrateBack
 # Create work dir
 RUN mkdir /app
 RUN chown -R skycrateBack:skycrateBack /app
-COPY ./target/skycrateBackend-1.5.jar /app
+COPY ./target/skycrateBackend-0.0.2.jar /app
 WORKDIR /app
 
 # Switch user
@@ -28,4 +28,4 @@ USER skycrateBack
 # Expose port for backend
 EXPOSE 8080
 
-CMD ["java", "-jar", "skycrateBackend-1.5.jar"]
+CMD ["java", "-jar", "skycrateBackend-0.0.2.jar"]
