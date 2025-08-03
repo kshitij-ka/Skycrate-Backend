@@ -13,7 +13,7 @@
 
     <groupId>com.skycrate.backend</groupId>
     <artifactId>skycrateBackend</artifactId>
-    <version>0.0.2</version>
+   <version>0.0.3</version>
     <name>skycrateBackend</name>
     <description>Cloud Storage App using HDFS</description>
 
